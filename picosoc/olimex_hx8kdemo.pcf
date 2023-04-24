@@ -1,0 +1,40 @@
+
+# Pinout for the Olimex iCE40HX8K-EVB
+
+set_io clk_in J3
+
+set_io flash_csb R12
+set_io flash_clk R11
+set_io flash_io0 P12
+set_io flash_io1 P11
+
+# for QSPI mode the flash chip on the iCE40-HX8K Breakout Board
+# must be replaced with one that supports QSPI and the IO2 and IO3
+# pins must be soldered to T9 and P8 (center on J3)
+set_io flash_io2 T9
+set_io flash_io3 P8
+
+set_io ser_tx T16
+set_io ser_rx L11
+
+# left on J3
+set_io debug_ser_tx E4
+set_io debug_ser_rx B2
+
+# right on J3
+set_io debug_flash_csb F5
+set_io debug_flash_clk B1
+set_io debug_flash_io0 C1
+set_io debug_flash_io1 C2
+set_io debug_flash_io2 F4
+set_io debug_flash_io3 D2
+
+set_io leds[7] J4
+set_io leds[6] G2
+set_io leds[5] H4
+set_io leds[4] F1
+set_io leds[3] H6
+set_io leds[2] F2
+set_io leds[1] R16
+set_io leds[0] M12
+

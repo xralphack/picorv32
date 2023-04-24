@@ -26,4 +26,15 @@
 /icebreaker_sections.lds
 /testbench.vcd
 /cmos.log
-
+/olimex_hx8kdemo.asc
+/olimex_hx8kdemo.bin
+/olimex_hx8kdemo.json
+/olimex_hx8kdemo.log
+/olimex_hx8kdemo.rpt
+/olimex_hx8kdemo_syn.v
+/olimex_hx8kdemo_syn_tb.vvp
+/olimex_hx8kdemo_tb.vvp
+/olimex_hx8kdemo_fw.elf
+/olimex_hx8kdemo_fw.hex
+/olimex_hx8kdemo_fw.bin
+/olimex_hx8kdemo_sections.lds

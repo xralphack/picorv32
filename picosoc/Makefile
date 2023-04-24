@@ -1,5 +1,5 @@
 
-CROSS=riscv32-unknown-elf-
+CROSS=riscv64-unknown-elf-
 CFLAGS=
 
 # ---- iCE40 HX8K Breakout Board ----
@@ -14,10 +14,10 @@ hx8kdemo.json: hx8kdemo.v spimemio.v simpleuart.v picosoc.v ../picorv32.v
 	yosys -ql hx8kdemo.log -p 'synth_ice40 -top hx8kdemo -json hx8kdemo.json' $^
 
 hx8kdemo_tb.vvp: hx8kdemo_tb.v hx8kdemo.v spimemio.v simpleuart.v picosoc.v ../picorv32.v spiflash.v
-	iverilog -s testbench -o $@ $^ `yosys-config --datdir/ice40/cells_sim.v` -DNO_ICE40_DEFAULT_ASSIGNMENTS
+	iverilog -DNO_ICE40_DEFAULT_ASSIGNMENTS -s testbench -o $@ $^ `yosys-config --datdir/ice40/cells_sim.v`
 
 hx8kdemo_syn_tb.vvp: hx8kdemo_tb.v hx8kdemo_syn.v spiflash.v
-	iverilog -s testbench -o $@ $^ `yosys-config --datdir/ice40/cells_sim.v` -DNO_ICE40_DEFAULT_ASSIGNMENTS
+	iverilog -DNO_ICE40_DEFAULT_ASSIGNMENTS -s testbench -o $@ $^ `yosys-config --datdir/ice40/cells_sim.v`
 
 hx8kdemo_syn.v: hx8kdemo.json
 	yosys -p 'read_json hx8kdemo.json; write_verilog hx8kdemo_syn.v'
@@ -94,6 +94,52 @@ icebreaker_fw.hex: icebreaker_fw.elf
 icebreaker_fw.bin: icebreaker_fw.elf
 	$(CROSS)objcopy -O binary icebreaker_fw.elf icebreaker_fw.bin
 
+# ---- Olimex iCE40HX8K-EVB ----
+
+olimex_hx8ksim: olimex_hx8kdemo_tb.vvp olimex_hx8kdemo_fw.hex
+	vvp -N $< +firmware=olimex_hx8kdemo_fw.hex
+
+olimex_hx8ksynsim: olimex_hx8kdemo_syn_tb.vvp olimex_hx8kdemo_fw.hex
+	vvp -N $< +firmware=olimex_hx8kdemo_fw.hex
+
+olimex_hx8kdemo.json: olimex_hx8kdemo.v spimemio.v simpleuart.v picosoc.v ../picorv32.v
+	yosys -ql olimex_hx8kdemo.log -p 'synth_ice40 -top hx8kdemo -json olimex_hx8kdemo.json' $^
+
+olimex_hx8kdemo_tb.vvp: olimex_hx8kdemo_tb.v olimex_hx8kdemo.v spimemio.v simpleuart.v picosoc.v ../picorv32.v spiflash.v
+	iverilog -DNO_ICE40_DEFAULT_ASSIGNMENTS -s testbench -o $@ $^ `yosys-config --datdir/ice40/cells_sim.v`
+
+olimex_hx8kdemo_syn_tb.vvp: olimex_hx8kdemo_tb.v olimex_hx8kdemo_syn.v spiflash.v
+	iverilog -DNO_ICE40_DEFAULT_ASSIGNMENTS -s testbench -o $@ $^ `yosys-config --datdir/ice40/cells_sim.v`
+
+olimex_hx8kdemo_syn.v: olimex_hx8kdemo.json
+	yosys -p 'read_json olimex_hx8kdemo.json; write_verilog olimex_hx8kdemo_syn.v'
+
+olimex_hx8kdemo.asc: olimex_hx8kdemo.pcf olimex_hx8kdemo.json
+	nextpnr-ice40 --freq 10 --hx8k --package ct256 --asc olimex_hx8kdemo.asc --json olimex_hx8kdemo.json --pcf olimex_hx8kdemo.pcf
+
+olimex_hx8kdemo.bin: olimex_hx8kdemo.asc
+	icetime -d hx8k -c 10 -mtr olimex_hx8kdemo.rpt olimex_hx8kdemo.asc
+	icepack olimex_hx8kdemo.asc olimex_hx8kdemo.bin
+
+olimex_hx8kprog: olimex_hx8kdemo.bin olimex_hx8kdemo_fw.bin
+	iceprogduino -I/dev/cu.usbmodem14301 -v olimex_hx8kdemo.bin
+	iceprogduino -I/dev/cu.usbmodem14301 -o 1M -v olimex_hx8kdemo_fw.bin
+	
+olimex_hx8kprog_fw: olimex_hx8kdemo_fw.bin
+	iceprogduino -I/dev/cu.usbmodem14301 -o 1M -v olimex_hx8kdemo_fw.bin
+
+olimex_hx8kdemo_sections.lds: sections.lds
+	$(CROSS)cpp -P -DHX8KDEMO -o $@ $^
+
+olimex_hx8kdemo_fw.elf: olimex_hx8kdemo_sections.lds start.s olimex_firmware.c
+	$(CROSS)gcc $(CFLAGS) -DHX8KDEMO -mabi=ilp32 -march=rv32imc -Wl,--build-id=none,-Bstatic,-T,olimex_hx8kdemo_sections.lds,--strip-debug -ffreestanding -nostdlib -o olimex_hx8kdemo_fw.elf start.s olimex_firmware.c
+
+olimex_hx8kdemo_fw.hex: olimex_hx8kdemo_fw.elf
+	$(CROSS)objcopy -O verilog olimex_hx8kdemo_fw.elf olimex_hx8kdemo_fw.hex
+
+olimex_hx8kdemo_fw.bin: olimex_hx8kdemo_fw.elf
+	$(CROSS)objcopy -O binary olimex_hx8kdemo_fw.elf olimex_hx8kdemo_fw.bin
+
 # ---- Testbench for SPI Flash Model ----
 
 spiflash_tb: spiflash_tb.vvp icebreaker_fw.hex
@@ -113,11 +159,12 @@ clean:
 	rm -f testbench.vvp testbench.vcd spiflash_tb.vvp spiflash_tb.vcd
 	rm -f hx8kdemo_fw.elf hx8kdemo_fw.hex hx8kdemo_fw.bin cmos.log
 	rm -f icebreaker_fw.elf icebreaker_fw.hex icebreaker_fw.bin
-	rm -f hx8kdemo.blif hx8kdemo.log hx8kdemo.asc hx8kdemo.rpt hx8kdemo.bin
+	rm -f hx8kdemo.json hx8kdemo.blif hx8kdemo.log hx8kdemo.asc hx8kdemo.rpt hx8kdemo.bin
 	rm -f hx8kdemo_syn.v hx8kdemo_syn_tb.vvp hx8kdemo_tb.vvp
 	rm -f icebreaker.json icebreaker.log icebreaker.asc icebreaker.rpt icebreaker.bin
 	rm -f icebreaker_syn.v icebreaker_syn_tb.vvp icebreaker_tb.vvp
-
+	rm -f olimex_hx8kdemo_fw.elf olimex_hx8kdemo_fw.hex olimex_hx8kdemo_sections.lds olimex_hx8kdemo_tb.vvp
+	rm -f olimex_hx8kdemo.log olimex_hx8kdemo.json olimex_hx8kdemo_syn.v olimex_hx8kdemo_syn_tb.vvp 
 .PHONY: spiflash_tb clean
 .PHONY: hx8kprog hx8kprog_fw hx8ksim hx8ksynsim
 .PHONY: icebprog icebprog_fw icebsim icebsynsim
